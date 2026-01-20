@@ -58,6 +58,8 @@ func (c *Client) Completion(ctx context.Context, content string) (*core.Response
 func (c *Client) GetSummaryPrefix(ctx context.Context, content string) (*core.Response, error) {
 	var resp openai.ChatCompletionResponse
 	var err error
+
+	// For known models that don't support function calls, use regular completion directly
 	if checkOSeriesModels.MatchString(c.model) ||
 		strings.Contains(strings.ToLower(c.model), "deepseek") {
 		resp, err = c.CreateChatCompletion(ctx, content)
@@ -65,8 +67,16 @@ func (c *Client) GetSummaryPrefix(ctx context.Context, content string) (*core.Re
 			return nil, err
 		}
 	} else {
+		// Try function call first
 		resp, err = c.CreateFunctionCall(ctx, content, SummaryPrefixFunc)
-		if err != nil || len(resp.Choices) != 1 {
+
+		// If function call fails (model doesn't support it), fallback to regular completion
+		if err != nil {
+			resp, err = c.CreateChatCompletion(ctx, content)
+			if err != nil || len(resp.Choices) != 1 {
+				return nil, err
+			}
+		} else if len(resp.Choices) != 1 {
 			return nil, err
 		}
 	}
