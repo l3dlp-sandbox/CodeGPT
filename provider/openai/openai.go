@@ -176,11 +176,11 @@ func (c *Client) completion(
 	if len(r.Choices) == 0 {
 		return nil, fmt.Errorf("no choices returned from API")
 	}
-	// Do not support reasoning content for now.
-	if r.Choices[0].Message.ReasoningContent != "" {
-		return nil, fmt.Errorf("reasoning model is not supported")
-	}
+	// Support reasoning models: prefer Content, fallback to ReasoningContent if empty
 	resp.Content = r.Choices[0].Message.Content
+	if resp.Content == "" && r.Choices[0].Message.ReasoningContent != "" {
+		resp.Content = r.Choices[0].Message.ReasoningContent
+	}
 	resp.Usage = r.Usage
 	return resp, nil
 }
